@@ -1,0 +1,2239 @@
+---
+title: "Software Faultiness Analysis - Marco Gatto"
+output:
+  html_document:
+    toc: yes
+    df_print: paged
+  html_notebook:
+    toc: yes
+    df_print: paged
+---
+
+# Project Purpose
+
+The purpose of the project is to carry out a complete data analysis based on 
+a dataset.
+In particular, the dataset Lucene provides Java-based indexing and 
+search technology, as well as spellchecking, hit highlighting and advanced 
+analysis/tokenization capabilities.
+
+
+
+
+
+# Import of the dataset
+
+In order to import the dataset, it is used the build-in function 'read.csv'.
+It is also shown a preview of the first rows of the dataset.
+
+```{r}
+lucene <- read.csv(
+  file='lucene-2.4.csv',
+  head=TRUE,
+  sep=',')
+
+head(lucene)
+```
+
+The dataset is composed by 340 rows and 24 columns.
+
+```{r}
+cat("Number of columns:", length(lucene))
+cat("Number of rows:", length(lucene[[1]]))
+```
+
+
+
+The names of the columns are shown below.
+
+```{r}
+colnames(lucene)
+```
+
+
+
+
+
+# Selection and visualization of the dependent variable
+
+The dependent variable must be related to the software faultiness.
+Looking at the available columns in the dataset, the 'bug' column is the only
+one that meets this requirement.
+In particular, it represents the number of defects reported in the analyzed
+artifacts.
+
+```{r}
+sw_fault <- lucene$bug
+
+head(sw_fault)
+```
+Instead of looking at the single values of the variable, it is possible to 
+show the histogram representing the their frequencies.
+In this way, it is possible to see whether the data are mostly focused around
+some values.
+
+```{r}
+hist(sw_fault)
+```
+It is also possible to show the histogram with different breaks.
+
+```{r}
+hist(sw_fault, breaks=15)
+```
+
+In order to have a better idea of how the data are distributed, it is also 
+possible to show a boxplot.
+
+```{r}
+boxplot(sw_fault)
+```
+
+
+
+
+
+# Selection and visualization of the independent variables
+
+The independent variables must be taken among the columns available in the
+dataset.
+In particular, it has been chosen to take into consideration the following 
+variables:
+
+ - Lines Of Code (LOC)
+ - Average Method Complexity (AMC)
+ - Measure Of Aggregation (MOA)
+ - Lack of COhesion in Methods (LCOM)
+ 
+The first two variables take into account the dimension or the complexity of
+the artifacts.
+The last two variables take into account the class fields of the artifacts.
+A more detailed description is performed below.
+
+
+
+
+## Selection and visualization of the independent variables - LOC
+
+The variable LOC represents the number of lines of code based on the Java 
+binary code.
+In particular, it is the sum of number of fields, number of methods and number 
+of instructions in every method of the investigated class.
+
+```{r}
+loc <- lucene$loc
+
+head(loc)
+```
+
+The histogram and the boxplot of this variable are shown below.
+
+```{r}
+hist(loc, breaks=15)
+boxplot(loc)
+```
+
+Since LOC is an independent variable, it is also possible to plot some diagrams
+that show the distribution of the dependent variable with respect to the values
+of the independent variable.
+In particular, a scatterplot and a boxplot are shown below.
+
+```{r}
+plot(loc, sw_fault)
+boxplot(sw_fault~loc)
+```
+
+
+
+
+## Selection and visualization of the independent variables - AMC
+
+The variable AMC measures the average method size for each class. Size of a 
+method is equal to the number of Java binary codes in the method.
+
+```{r}
+amc <- lucene$amc
+
+head(amc)
+```
+
+The histogram and the boxplot of this variable are shown below.
+
+```{r}
+hist(amc, breaks=10)
+boxplot(amc)
+```
+
+Since AMC is an independent variable, it is also possible to plot some diagrams
+that show the distribution of the dependent variable with respect to the values
+of the independent variable.
+In particular, a scatterplot and a boxplot are shown below.
+
+```{r}
+plot(amc, sw_fault)
+boxplot(sw_fault~amc)
+```
+
+
+
+
+## Selection and visualization of the independent variables - MOA
+
+The variable MOA measures the extent of the part-whole relationship, realized 
+by using attributes. The metric is a count of the number of class fields whose
+types are user defined classes.
+
+```{r}
+moa <- lucene$moa
+
+head(moa)
+```
+
+The histogram and the boxplot of this variable are shown below.
+
+```{r}
+hist(moa)
+boxplot(moa)
+```
+
+Since MOA is an independent variable, it is also possible to plot some diagrams
+that show the distribution of the dependent variable with respect to the values
+of the independent variable.
+In particular, a scatterplot and a boxplot are shown below.
+
+```{r}
+plot(moa, sw_fault)
+boxplot(sw_fault~moa)
+```
+
+
+
+
+## Selection and visualization of the independent variables - LCOM
+
+The variable LCOM counts the sets of methods in a class that are not related
+through the sharing of some of the class fields.
+In particular, it is calculated by subtracting from the number of method pairs 
+that do not share a field access the number of method pairs that do.
+
+```{r}
+lcom <- lucene$lcom
+
+head(lcom)
+```
+
+The histogram and the boxplot of this variable are shown below.
+
+```{r}
+hist(lcom, breaks=10)
+boxplot(lcom)
+```
+
+Since LCOM is an independent variable, it is also possible to plot some diagrams
+that show the distribution of the dependent variable with respect to the values
+of the independent variable.
+In particular, a scatterplot and a boxplot are shown below.
+
+```{r}
+plot(lcom, sw_fault)
+boxplot(sw_fault~lcom)
+```
+
+
+
+
+
+# Descriptive Statistics
+
+Descriptive statistics are used to quantitatively describe or summarize features
+from a collection of information.
+
+In order to get a significant set of descriptive statistics, it should contain
+indicators that are able to provide information about the cardinality of the 
+dataset, the central tendency indicator and the dispersion indicators.
+Since none of the considered variables is neither a nominal nor an ordinal
+scale, the set of descriptive statistics computed on the considered variables
+contains:
+
+ - Number of samples
+ - Minimum and Maximum values
+ - Median
+ - Mean
+ - Standard Deviation
+
+The first step concerns the definition of a function that computes the
+descriptive statistics on a specific variable and then groups them into a table.
+
+```{r}
+descrStatsNames <- c('Samples Nr','Min','Max','Median','Mean','Std. Dev')
+
+descriptive.statistics <- function(var) {
+  samplesNumber <- length(var)
+  min <- min(var)
+  max <- max(var)
+  median <- median(var)
+  mean <- mean(var)
+  stdDev <- sd(var)
+  matrix <- matrix(c(samplesNumber, min, max, median, mean, stdDev), byrow=TRUE)
+  rownames(matrix) <- descrStatsNames
+  return (as.table(matrix))
+}
+```
+
+This function will be used to compute the descriptive statistics for all the
+considered variables.
+
+
+
+
+## Descriptive Statistics - Software Faultiness
+
+```{r}
+sw_fault_DescrStats <- descriptive.statistics(sw_fault)
+colnames(sw_fault_DescrStats) <- c('Sw_Fault')
+sw_fault_DescrStats
+```
+
+
+
+
+## Descriptive Statistics - LOC
+
+```{r}
+loc_DescrStats <- descriptive.statistics(loc)
+colnames(loc_DescrStats) <- c('LOC')
+loc_DescrStats
+```
+
+
+
+
+## Descriptive Statistics - AMC
+
+```{r}
+amc_DescrStats <- descriptive.statistics(amc)
+colnames(amc_DescrStats) <- c('AMC')
+amc_DescrStats
+```
+
+
+
+
+## Descriptive Statistics - MOA
+
+```{r}
+moa_DescrStats <- descriptive.statistics(moa)
+colnames(moa_DescrStats) <- c('MOA')
+moa_DescrStats
+```
+
+
+
+
+## Descriptive Statistics - LCOM
+
+```{r}
+lcom_DescrStats <- descriptive.statistics(lcom)
+colnames(lcom_DescrStats) <- c('LCOM')
+lcom_DescrStats
+```
+
+
+
+
+## Descriptive Statistics - Results
+
+The descriptive statistics computed on all the considered variables can be
+reported into a single table.
+
+```{r}
+cbind(sw_fault_DescrStats, loc_DescrStats, amc_DescrStats, moa_DescrStats, lcom_DescrStats)
+```
+
+
+
+
+
+# Univariate statistically-significant model - OLS
+
+The Ordinary Least Square (OLS) regression is a statistical technique used for 
+the analysis and modelling of linear relationships between a dependent variable 
+and one or more independent variables. 
+If the relationship between two variables appears to be linear, then a straight 
+line can be fit to the data in order to model the relationship.
+
+
+
+
+## Univariate statistically-significant model - OLS - Software Faultiness vs LOC
+
+```{r}
+sw_faultVSloc <- lm(sw_fault~loc)
+
+plot(loc, sw_fault)
+abline(sw_faultVSloc)
+```
+
+
+Before the application of the OLS technique, it is needed to verify whether its
+assumptions are met.
+In particular, the assumptions impose that the distribution of the two variables
+must be linear.
+This step is particularly important because it can be used to assess whether
+the obtained model can be considered statistically-significant.
+
+In order to check whether the assumptions of the OLS technique are met, a
+correlation test can be used.
+In particular, a correlation test is a technique that is used to evaluate the 
+association between two or more variables.
+The result of the application of a correlation test is a coefficient, that is
+a numeric value that measure the degree of association between the variables.
+There are several, well-known correlation coefficients that can be used to
+evaluate the association between variables:
+
+ - Pearson's R: it is used to measure the degree of correlation between two
+ variables. It is computed as the covariance of the two variables, divided by
+ the product of their standard deviations. Its values are always between -1 and 
+ +1, where -1 implies a perfect negative correlation, 0 implies the absence of
+ correlation and +1 implies a perfect positive correlation.
+ - Spearman's rho: it is Pearson's R applied to the ranked values rather than
+ to the raw data. Even in this case, its values range between -1 and +1.
+ - Kendall's tau: it is used to measure the degree of correlation between two
+ variables. Even in this case, its values range between -1 and +1.
+ However, Kendall's tau is more robust and efficient than Spearman's rho, and 
+ it is usually preferred when there are small samples and some outliers.
+ Kendall's tau is generally smaller than Spearman's rho.
+
+In order to check whether two variables are linearly dependent, it is also 
+possible to use the Shapiro-Wilk's test of normality.
+The null hypothesis of the test is that the data are normally distributed, while
+the alternative hypothesis is that the data are not normally distributed.
+The results of the Shapiro-Wilk test are the W coefficient and the p-value. In
+particular, if the p-value is less than 0.05, then the null hypothesis is
+rejected and there is the evidence that the data are not normally distributed.
+However, if the p-value is greater than 0.05, then the null hypothesis cannot be
+rejected and there is the evidence that the data are normally distributed.
+
+
+
+### Check of the assumptions
+
+The first step concerns the definition of a function that computes the main
+correlation coefficients over two variables.
+
+```{r}
+corrCoeffNames <- c('Pearson\'s R',
+                    'Spearman\'s Rho',
+                    'Kendall\'s Tau',
+                    'Shapiro-Wilk p-value')
+
+correlation.coefficients <- function(x,y,ols_model) {
+  orig_pearson <- cor.test(x, y, 
+                          alternative="greater",
+                          method="pearson")
+  orig_r <- orig_pearson$estimate
+  print(orig_pearson)
+  
+  orig_spearman <- cor.test(y, x, 
+                            alternative="two.sided", 
+                            method="spearman", 
+                            exact=FALSE)
+  orig_rho <- orig_spearman$estimate
+  print(orig_spearman)
+  
+  orig_kendall <- cor.test(y, x, 
+                           alternative="greater",
+                           method="kendall")
+  orig_tau <- orig_kendall$estimate
+  print(orig_kendall)
+  
+  orig_shapiro <- shapiro.test(ols_model$residuals)
+  orig_pvalue <- orig_shapiro$p.value
+  print(orig_shapiro)
+  
+  matrix <- matrix(c(orig_r, orig_rho, orig_tau, orig_pvalue), byrow=TRUE)
+  rownames(matrix) <- corrCoeffNames
+  return (as.table(matrix))
+}
+```
+
+
+```{r}
+orig_corrCoeff <- correlation.coefficients(loc, sw_fault, sw_faultVSloc)
+colnames(orig_corrCoeff) <- c('SwFaultVSLOC')
+orig_corrCoeff
+```
+
+According to the obtained results, the Pearson's R coefficient shows a slight 
+degree of correlation between the two variables.
+Even if their values are less significant, both the Spearman's rho and the 
+Kendall's tau coefficients show a slight degree of correlation.
+However, the p-value computed by the Shapiro-Wilk test strongly rejects the 
+normality of the data.
+
+
+
+### Data transformation
+
+Since it is not possible to establish whether the data are effectively linearly
+dependent, it can be useful to try to apply some data transformation techniques
+and then check again whether the assumptions of the OLS model are met by the
+new data.
+In particular, it is possible to adopt two different approaches.
+
+
+
+### Data transformation - Logarithmic transformation
+
+This technique implies that both the dependent and the independent variables
+are replaced by their logarithm. In particular, in order to avoid the creation
+of negative values, the data will be transformed according to the formula
+$$var' = log(1 + var)$$
+
+```{r}
+log_sw_fault <- log(1+sw_fault)
+log_loc <- log(1+loc)
+
+log_sw_faultVSloc <- lm(log_sw_fault~log_loc)
+```
+
+```{r}
+log_corrCoeff <- correlation.coefficients(log_loc, log_sw_fault, log_sw_faultVSloc)
+colnames(log_corrCoeff) <- c('Log_SwFaultVSLOC')
+log_corrCoeff
+```
+According to the obtained results and with the results obtained on the original
+data, the results of both the Spearman's rho and the Kendall's tau are not
+changed and the Pearson's R is worse.
+Furthermore, the p-value computed by the Shapiro-Wilk test is still less than 0.05.
+So, this transformation did not work in this situation.
+
+It is also possible to graphically check the differences between the two OLS lines of regression.
+
+```{r}
+plot(log_loc, log_sw_fault)
+abline(log_sw_faultVSloc)
+```
+
+
+
+### Data transformation - Outliers Removal
+
+Outliers are data-points with a heavy influence for the regression model.
+In particular, they can lead to the creation of incorrect or useless models.
+Outliers can be caused by corrupted data or rare statistical fluctuations.
+So, it can be particularly interesting to investigate the reasons that brought
+to their values.
+
+In order to eliminate the outliers, it is important to adopt an iterative and
+automatic approach.
+In particular, one of the most important considerations that need to be taken 
+into account is the evaluation of the model after the removal of each outlier.
+
+The metric used to evaluate the influence of a data-point for the regression
+model is the Cook's distance.
+
+```{r}
+cooksDistances <- cooks.distance(sw_faultVSloc)
+head(cooksDistances)
+```
+
+A data-point is considered to be an outlier when its Cook's distance is greater 
+than a fixed threshold.
+In particular, it has been chosen to evaluate the results obtained by using
+two different threshold values.
+In the first case, the threshold is set to 4/L, where L is the number of samples.
+In the second case, the threshold is set to 1.
+
+```{r}
+sum(cooksDistances > 4/length(cooksDistances))
+sum(cooksDistances > 1)
+```
+
+Since it is preferable to remove the fewest number of data-points, the case in
+which the threshold equals 1 is analyzed as first.
+
+
+
+### Data transformation - Outliers Removal - Threshold = 1
+
+The first step of this procedure concerns the definition of a function that
+iteratively removes the outliers from the data.
+
+```{r}
+removeOutliersCook1 <- function(x,y) {
+  done = FALSE
+  while ( !done ) {
+    model = lm(y ~ x)
+    cooksDistances <- cooks.distance(model)
+    maxCooksDistance = max(cooksDistances)
+    l = length(y)
+    if(maxCooksDistance < 1) { done = TRUE; break; }
+    removeNext = which.max(cooksDistances)
+    y = y[-c(removeNext)]
+    x = x[-c(removeNext)]
+  }
+  return (list(x,y))
+}
+```
+
+Then, the function is called on the variables LOC and Software Faultiness.
+
+```{r}
+nonOutliersCook1 <- removeOutliersCook1(loc, sw_fault)
+```
+
+In order to make the code more clear, two new variables are created.
+
+```{r}
+nonOutliersCook1_loc <- nonOutliersCook1[[1]]
+nonOutliersCook1_sw_fault <- nonOutliersCook1[[2]]
+```
+
+Before the correlation coefficient are computed on the new data, it is important
+to check how many data-points has been removed.
+
+```{r}
+plot(loc, sw_fault, col="red")
+points(nonOutliersCook1_loc, nonOutliersCook1_sw_fault, col="black")
+```
+
+The model is finally re-created and the OLS assumptions are checked on the data
+with the outliers removed.
+
+```{r}
+nonOutliersCook1_sw_faultsVSloc <- lm(nonOutliersCook1_sw_fault~nonOutliersCook1_loc)
+
+nonOutliersCook1_corrCoeff <- correlation.coefficients(nonOutliersCook1_loc, 
+                                                       nonOutliersCook1_sw_fault, 
+                                                       nonOutliersCook1_sw_faultsVSloc)
+colnames(nonOutliersCook1_corrCoeff) <- c('NonOutCook1_SwFaultVSLOC')
+nonOutliersCook1_corrCoeff
+```
+
+Comparing the obtained results with the ones obtained on the original data, all 
+the coefficients show worse results.
+In particular, the p-value computed by the Shapiro-Wilk test is less than 0.05.
+So, this transformation did not work in this situation.
+
+It is also possible to graphically check the differences between the two OLS
+lines of regression.
+
+```{r}
+plot(loc, sw_fault)
+abline(sw_faultVSloc)
+abline(nonOutliersCook1_sw_faultsVSloc, col="red")
+```
+
+
+
+### Data transformation - Outliers Removal - Threshold = 4/L
+
+Even in this case, the first step of this procedure concerns the definition of 
+a function that iteratively removes the outliers from the data.
+
+```{r}
+removeOutliersCook4l <- function(x,y) {
+  done = FALSE
+  while ( !done ) {
+    model = lm(y ~ x)
+    cooksDistances <- cooks.distance(model)
+    maxCooksDistance = max(cooksDistances)
+    l = length(y)
+    if(maxCooksDistance < 4/l) { done = TRUE; break; }
+    removeNext = which.max(cooksDistances)
+    y = y[-c(removeNext)]
+    x = x[-c(removeNext)]
+  }
+  return (list(x,y))
+}
+```
+
+Then, the function is called on the variables LOC and Software Faultiness.
+
+```{r}
+nonOutliersCook4l <- removeOutliersCook4l(loc, sw_fault)
+```
+
+In order to make the code more clear, two new variables are created.
+
+```{r}
+nonOutliersCook4l_loc <- nonOutliersCook4l[[1]]
+nonOutliersCook4l_sw_fault <- nonOutliersCook4l[[2]]
+```
+
+Before the correlation coefficient are computed on the new data, it is important
+to check how many data-points has been removed.
+
+```{r}
+plot(loc, sw_fault, col="red")
+points(nonOutliersCook4l_loc, nonOutliersCook4l_sw_fault, col="black")
+```
+
+In particular, in this case the scatterplot shows that a very huge number of 
+data-points has been considered outliers and has been removed from the original
+data.
+This is a possible reason to support the choice to consider this model as not
+statistically-significant.
+
+```{r}
+cat("Data-points in the original data:",
+    length(sw_fault))
+
+cat("Data-points removed from the original data:",
+    length(sw_fault) - length(nonOutliersCook4l_sw_fault))
+```
+
+The model is finally re-created and the OLS assumptions are checked on the data 
+with the outliers removed.
+
+```{r}
+nonOutliersCook4l_sw_faultsVSloc <- lm(nonOutliersCook4l_sw_fault~nonOutliersCook4l_loc)
+
+nonOutliersCook4l_corrCoeff <- correlation.coefficients(nonOutliersCook4l_loc, 
+                                                        nonOutliersCook4l_sw_fault, 
+                                                        nonOutliersCook4l_sw_faultsVSloc)
+colnames(nonOutliersCook4l_corrCoeff) <- c('NonOutCook4l_SwFaultVSLOC')
+nonOutliersCook4l_corrCoeff
+```
+
+Comparing the obtained results with the ones obtained on the original data, the
+Pearson's R coefficient is slightly decreased, but both the Spearman's rho and
+the Kendall's tau are slightly increased.
+However, the p-value computed by the Shapiro-Wilk test is still less than 0.05. 
+So, this transformation did not work in this situation.
+
+It is also possible to graphically check the differences between the two OLS
+lines of regression.
+
+```{r}
+plot(loc, sw_fault)
+abline(sw_faultVSloc)
+abline(nonOutliersCook4l_sw_faultsVSloc, col="red")
+```
+
+
+
+### Final considerations
+
+The application of the OLS technique on the variables LOC and Software 
+Faultiness is not possible, because these two variables are not linearly
+dependent.
+
+In particular, it is possible to report the main coefficient that evaluate the
+linear dependency of these two variables over the different analysis performed.
+
+```{r}
+cbind(orig_corrCoeff, log_corrCoeff, nonOutliersCook1_corrCoeff, nonOutliersCook4l_corrCoeff)
+```
+
+Looking at the above table, it is possible to state that only the original
+data show a slight degree of correlation.
+In particular, all the data transformation techniques reduce the degree of 
+linear dependency among the two variables.
+
+
+
+
+## Univariate statistically-significant model - OLS - Software Faultiness vs AMC
+
+```{r}
+sw_faultVSamc <- lm(sw_fault~amc)
+
+plot(amc, sw_fault)
+abline(sw_faultVSamc)
+```
+
+The steps performed to evaluate the results of the OLS technique applied to
+the variables Software Faultiness and AMC are the same performed in the previous
+analysis.
+
+
+
+### Check of the assumptions
+
+```{r}
+orig_corrCoeff <- correlation.coefficients(amc, sw_fault, sw_faultVSamc)
+colnames(orig_corrCoeff) <- c('SwFaultVSAMC')
+orig_corrCoeff
+```
+
+According to the obtained results, all the coefficients show bad results.
+In particular, the p-value computed by the Shapiro-Wilk test is less than 0.05.
+
+
+
+### Data transformation - Logarithmic transformation
+
+```{r}
+log_sw_fault <- log(1+sw_fault)
+log_amc <- log(1+amc)
+
+log_sw_faultVSamc <- lm(log_sw_fault~log_amc)
+```
+
+```{r}
+log_corrCoeff <- correlation.coefficients(log_amc, log_sw_fault, log_sw_faultVSamc)
+colnames(log_corrCoeff) <- c('Log_SwFaultVSAMC')
+log_corrCoeff
+```
+
+According to the obtained results and with the results obtained on the original
+data, the results of both the Spearman’s rho and the Kendall’s tau are not
+changed and the Pearson’s R is slightly increased.
+However, the p-value computed by the Shapiro-Wilk test is still less than 0.05.
+So, this transformation did not work in this situation.
+
+It is also possible to graphically check that the data are not linearly
+dependent.
+
+```{r}
+plot(log_amc, log_sw_fault)
+abline(log_sw_faultVSamc)
+```
+
+
+
+### Data transformation - Outliers Removal
+
+```{r}
+cooksDistances <- cooks.distance(sw_faultVSamc)
+sum(cooksDistances > 4/length(cooksDistances))
+sum(cooksDistances > 1)
+```
+
+Since there are no data-points with a Cook's distance greater than 1, this case
+is not analyzed.
+
+
+
+### Data transformation - Outliers Removal - Threshold = 4/L
+
+In order to remove the outliers according to a threshold value equal to 4/L, the
+same function defined before is used.
+
+
+```{r}
+nonOutliersCook4l <- removeOutliersCook4l(amc, sw_fault)
+```
+
+In order to make the code more clear, two new variables are created.
+
+```{r}
+nonOutliersCook4l_amc <- nonOutliersCook4l[[1]]
+nonOutliersCook4l_sw_fault <- nonOutliersCook4l[[2]]
+```
+
+Before the correlation coefficient are computed on the new data, it is important
+to check how many data-points has been removed.
+
+```{r}
+plot(amc, sw_fault, col="red")
+points(nonOutliersCook4l_amc, nonOutliersCook4l_sw_fault, col="black")
+```
+
+Even in this case, the scatterplot shows that a very huge number of data-points
+has been considered outliers and has been removed from the original data.
+This is a possible reason to support the choice to consider this model as not
+statistically-significant.
+
+```{r}
+cat("Data-points in the original data:",
+    length(sw_fault))
+
+cat("Data-points removed from the original data:",
+    length(sw_fault) - length(nonOutliersCook4l_sw_fault))
+```
+
+The model is finally re-created and the OLS assumptions are checked on the data
+with the outliers removed.
+
+```{r}
+nonOutliersCook4l_sw_faultsVSamc <- lm(nonOutliersCook4l_sw_fault~nonOutliersCook4l_amc)
+
+nonOutliersCook4l_corrCoeff <- correlation.coefficients(nonOutliersCook4l_amc, 
+                                                        nonOutliersCook4l_sw_fault, 
+                                                        nonOutliersCook4l_sw_faultsVSamc)
+colnames(nonOutliersCook4l_corrCoeff) <- c('NonOutCook4l_SwFaultVSAMC')
+nonOutliersCook4l_corrCoeff
+```
+
+Comparing the obtained results with the ones obtained on the original data, the
+Pearson’s R coefficient is slightly increased, but both the Spearman’s rho, but 
+the Kendall’s tau are slightly decreased.
+However, the p-value computed by the Shapiro-Wilk test is still less than 0.05.
+So, this transformation did not work in this situation.
+
+It is also possible to graphically check the differences between the two OLS
+lines of regression.
+
+```{r}
+plot(amc, sw_fault)
+abline(sw_faultVSamc)
+abline(nonOutliersCook4l_sw_faultsVSamc, col="red")
+```
+
+
+
+### Final considerations
+
+The application of the OLS technique on the variables AMC and Software 
+Faultiness is not possible, because these two variables are not linearly
+dependent.
+
+In particular, it is possible to report the main coefficient that evaluate the
+linear dependency of these two variables over the different analysis performed.
+
+```{r}
+cbind(orig_corrCoeff, log_corrCoeff, nonOutliersCook4l_corrCoeff)
+```
+
+Looking at the above table, it is possible to state that none of the data
+transformation techniques allow the data to be linearly dependent.
+
+
+
+
+## Univariate statistically-significant model - OLS - Software Faultiness vs MOA
+
+```{r}
+sw_faultVSmoa <- lm(sw_fault~moa)
+
+plot(moa, sw_fault)
+abline(sw_faultVSmoa)
+```
+
+The steps performed to evaluate the results of the OLS technique applied to
+the variables Software Faultiness and MOA are the same performed in the previous
+analysis.
+
+
+
+### Check of the assumptions
+
+```{r}
+orig_corrCoeff <- correlation.coefficients(moa, sw_fault, sw_faultVSmoa)
+colnames(orig_corrCoeff) <- c('SwFaultVSMOA')
+orig_corrCoeff
+```
+
+According to the obtained results, the Pearson's R coefficient shows a very
+slight degree of correlation, but both the Spearman's rho and the Kendall's tau
+are quite near to 0.
+The p-value computed by the Shapiro-Wilk test is less than 0.05.
+
+
+
+### Data transformation - Logarithmic transformation
+
+```{r}
+log_sw_fault <- log(1+sw_fault)
+log_moa <- log(1+moa)
+
+log_sw_faultVSmoa <- lm(log_sw_fault~log_moa)
+```
+
+```{r}
+log_corrCoeff <- correlation.coefficients(log_moa, log_sw_fault, log_sw_faultVSmoa)
+colnames(log_corrCoeff) <- c('Log_SwFaultVSMOA')
+log_corrCoeff
+```
+
+According to the obtained results and with the results obtained on the original
+data, the results of both the Spearman’s rho and the Kendall’s tau are not
+changed, but the Pearson’s R is slightly decreased.
+Furthermore, the p-value computed by the Shapiro-Wilk test is still less than 0.05.
+So, this transformation did not work in this situation.
+
+It is also possible to graphically check that the data are not linearly
+dependent.
+
+```{r}
+plot(log_moa, log_sw_fault)
+abline(log_sw_faultVSmoa)
+```
+
+
+
+### Data transformation - Outliers Removal
+
+```{r}
+cooksDistances <- cooks.distance(sw_faultVSmoa)
+sum(cooksDistances > 4/length(cooksDistances))
+sum(cooksDistances > 1)
+```
+
+Since it is preferable to remove the fewest number of data-points, the case in 
+which the threshold equals 1 is analyzed as first.
+
+
+
+### Data transformation - Outliers Removal - Threshold = 1
+
+In order to remove the outliers according to a threshold value equal to 1, the
+same function defined before is used.
+
+```{r}
+nonOutliersCook1 <- removeOutliersCook1(moa, sw_fault)
+```
+
+In order to make the code more clear, two new variables are created.
+
+```{r}
+nonOutliersCook1_moa <- nonOutliersCook1[[1]]
+nonOutliersCook1_sw_fault <- nonOutliersCook1[[2]]
+```
+
+Before the correlation coefficient are computed on the new data, it is important
+to check how many data-points has been removed.
+
+```{r}
+plot(moa, sw_fault, col="red")
+points(nonOutliersCook1_moa, nonOutliersCook1_sw_fault, col="black")
+```
+
+The model is finally re-created and the OLS assumptions are checked on the data
+with the outliers removed.
+
+```{r}
+nonOutliersCook1_sw_faultsVSmoa <- lm(nonOutliersCook1_sw_fault~nonOutliersCook1_moa)
+
+nonOutliersCook1_corrCoeff <- correlation.coefficients(nonOutliersCook1_moa, 
+                                                        nonOutliersCook1_sw_fault, 
+                                                        nonOutliersCook1_sw_faultsVSmoa)
+colnames(nonOutliersCook1_corrCoeff) <- c('NonOutCook1_SwFaultVSMOA')
+nonOutliersCook1_corrCoeff
+```
+
+According to the obtained results and with the results obtained on the original
+data, all the results are worse.
+Furthermore, the p-value computed by the Shapiro-Wilk test is still less than 0.05.
+So, this transformation did not work in this situation.
+
+It is also possible to graphically check the differences between the two OLS
+lines of regression.
+
+```{r}
+plot(moa, sw_fault)
+abline(sw_faultVSmoa)
+abline(nonOutliersCook1_sw_faultsVSmoa, col="red")
+```
+
+
+
+### Data transformation - Outliers Removal - Threshold = 4/L
+
+In order to remove the outliers according to a threshold value equal to 4/L, the
+same function defined before is used.
+
+
+```{r}
+nonOutliersCook4l <- removeOutliersCook4l(moa, sw_fault)
+```
+
+In order to make the code more clear, two new variables are created.
+
+```{r}
+nonOutliersCook4l_moa <- nonOutliersCook4l[[1]]
+nonOutliersCook4l_sw_fault <- nonOutliersCook4l[[2]]
+```
+
+Before the correlation coefficient are computed on the new data, it is important
+to check how many data-points has been removed.
+
+```{r}
+plot(moa, sw_fault, col="red")
+points(nonOutliersCook4l_moa, nonOutliersCook4l_sw_fault, col="black")
+```
+
+Even in this case, the scatterplot shows that a very huge number of data-points
+has been considered outliers and has been removed from the original data.
+This is a possible reason to support the choice to consider this model as not
+statistically-significant.
+
+```{r}
+cat("Data-points in the original data:",
+    length(sw_fault))
+
+cat("Data-points removed from the original data:",
+    length(sw_fault) - length(nonOutliersCook4l_sw_fault))
+```
+
+The model is finally re-created and the OLS assumptions are checked on the data
+with the outliers removed.
+
+```{r}
+nonOutliersCook4l_sw_faultsVSmoa <- lm(nonOutliersCook4l_sw_fault~nonOutliersCook4l_moa)
+
+nonOutliersCook4l_corrCoeff <- correlation.coefficients(nonOutliersCook4l_moa, 
+                                                        nonOutliersCook4l_sw_fault, 
+                                                        nonOutliersCook4l_sw_faultsVSmoa)
+colnames(nonOutliersCook4l_corrCoeff) <- c('NonOutCook4l_SwFaultVSMOA')
+nonOutliersCook4l_corrCoeff
+```
+
+Comparing the obtained results with the ones obtained on the original data, all
+the results show worse results.
+In particular, all the values of the correlation coefficients have changed from
+low values quite near to 0 to negative values quite near to 0.
+The p-value computed by the Shapiro-Wilk test is still less than 0.05.
+So, this transformation did not work in this situation.
+
+It is also possible to graphically check the differences between the two OLS
+lines of regression.
+
+```{r}
+plot(moa, sw_fault)
+abline(sw_faultVSmoa)
+abline(nonOutliersCook4l_sw_faultsVSmoa, col="red")
+```
+
+
+
+### Final considerations
+
+The application of the OLS technique on the variables MOA and Software 
+Faultiness is not possible, because these two variables are not linearly
+dependent.
+
+In particular, it is possible to report the main coefficient that evaluate the
+linear dependency of these two variables over the different analysis performed.
+
+```{r}
+cbind(orig_corrCoeff, log_corrCoeff, nonOutliersCook1_corrCoeff, nonOutliersCook4l_corrCoeff)
+```
+
+Looking at the above table, it is possible to state that only the original
+data show a very slight degree of correlation.
+In particular, all the data transformation techniques reduce the degree of 
+linear dependency among the two variables.
+
+
+
+
+## Univariate statistically-significant model - OLS - Software Faultiness vs LCOM
+
+```{r}
+sw_faultVSlcom <- lm(sw_fault~lcom)
+
+plot(lcom, sw_fault)
+abline(sw_faultVSlcom)
+```
+
+The steps performed to evaluate the results of the OLS technique applied to
+the variables Software Faultiness and LCOM are the same performed in the previous
+analysis.
+
+
+
+### Check of the assumptions
+
+```{r}
+orig_corrCoeff <- correlation.coefficients(lcom, sw_fault, sw_faultVSlcom)
+colnames(orig_corrCoeff) <- c('SwFaultVSLCOM')
+orig_corrCoeff
+```
+
+According to the obtained results, the Pearson's R coefficient shows a
+slight degree of correlation, but both the Spearman's rho and the Kendall's tau
+are quite near to 0.
+The p-value computed by the Shapiro-Wilk test is less than 0.05.
+
+
+
+### Data transformation - Logarithmic transformation
+
+```{r}
+log_sw_fault <- log(1+sw_fault)
+log_lcom <- log(1+lcom)
+
+log_sw_faultVSlcom <- lm(log_sw_fault~log_lcom)
+```
+
+```{r}
+log_corrCoeff <- correlation.coefficients(log_lcom, log_sw_fault, log_sw_faultVSlcom)
+colnames(log_corrCoeff) <- c('Log_SwFaultVSLCOM')
+log_corrCoeff
+```
+
+According to the obtained results and with the results obtained on the original
+data, the results of both the Spearman’s rho and the Kendall’s tau are not
+changed, but the Pearson’s R is strongly decreased.
+Furthermore, the p-value computed by the Shapiro-Wilk test is still less than 0.05.
+So, this transformation did not work in this situation.
+
+It is also possible to graphically check that the data are not linearly
+dependent.
+
+```{r}
+plot(log_lcom, log_sw_fault)
+abline(log_sw_faultVSlcom)
+```
+
+
+
+### Data transformation - Outliers Removal
+
+```{r}
+cooksDistances <- cooks.distance(sw_faultVSlcom)
+sum(cooksDistances > 4/length(cooksDistances))
+sum(cooksDistances > 1)
+```
+
+Since it is preferable to remove the fewest number of data-points, the case in 
+which the threshold equals 1 is analyzed as first.
+
+
+
+### Data transformation - Outliers Removal - Threshold = 1
+
+In order to remove the outliers according to a threshold value equal to 1, the
+same function defined before is used.
+
+```{r}
+nonOutliersCook1 <- removeOutliersCook1(lcom, sw_fault)
+```
+
+In order to make the code more clear, two new variables are created.
+
+```{r}
+nonOutliersCook1_lcom <- nonOutliersCook1[[1]]
+nonOutliersCook1_sw_fault <- nonOutliersCook1[[2]]
+```
+
+Before the correlation coefficient are computed on the new data, it is important
+to check how many data-points has been removed.
+
+```{r}
+plot(lcom, sw_fault, col="red")
+points(nonOutliersCook1_lcom, nonOutliersCook1_sw_fault, col="black")
+```
+
+The model is finally re-created and the OLS assumptions are checked on the data
+with the outliers removed.
+
+```{r}
+nonOutliersCook1_sw_faultsVSlcom <- lm(nonOutliersCook1_sw_fault~nonOutliersCook1_lcom)
+
+nonOutliersCook1_corrCoeff <- correlation.coefficients(nonOutliersCook1_lcom, 
+                                                        nonOutliersCook1_sw_fault, 
+                                                        nonOutliersCook1_sw_faultsVSlcom)
+colnames(nonOutliersCook1_corrCoeff) <- c('NonOutCook1_SwFaultVSLCOM')
+nonOutliersCook1_corrCoeff
+```
+
+According to the obtained results and with the results obtained on the original
+data, the Pearson's R coefficient is slightly decreased, but still significant.
+However, both the Spearman's rho and the Kendall's tau are quite near to 0.
+Furthermore, the p-value computed by the Shapiro-Wilk test is still less than 0.05.
+So, this transformation did not work in this situation.
+
+It is also possible to graphically check the differences between the two OLS
+lines of regression.
+
+```{r}
+plot(lcom, sw_fault)
+abline(sw_faultVSlcom)
+abline(nonOutliersCook1_sw_faultsVSlcom, col="red")
+```
+
+
+
+### Data transformation - Outliers Removal - Threshold = 4/L
+
+In order to remove the outliers according to a threshold value equal to 4/L, the
+same function defined before is used.
+
+
+```{r}
+nonOutliersCook4l <- removeOutliersCook4l(lcom, sw_fault)
+```
+
+In order to make the code more clear, two new variables are created.
+
+```{r}
+nonOutliersCook4l_lcom <- nonOutliersCook4l[[1]]
+nonOutliersCook4l_sw_fault <- nonOutliersCook4l[[2]]
+```
+
+Before the correlation coefficient are computed on the new data, it is important
+to check how many data-points has been removed.
+
+```{r}
+plot(lcom, sw_fault, col="red")
+points(nonOutliersCook4l_lcom, nonOutliersCook4l_sw_fault, col="black")
+```
+
+It can be usefut to print the number of data-points that have been removed from
+the function.
+
+```{r}
+cat("Data-points in the original data:",
+    length(sw_fault))
+
+cat("Data-points removed from the original data:",
+    length(sw_fault) - length(nonOutliersCook4l_sw_fault))
+```
+
+The model is finally re-created and the OLS assumptions are checked on the data
+with the outliers removed.
+
+```{r}
+nonOutliersCook4l_sw_faultsVSlcom <- lm(nonOutliersCook4l_sw_fault~nonOutliersCook4l_lcom)
+
+nonOutliersCook4l_corrCoeff <- correlation.coefficients(nonOutliersCook4l_lcom, 
+                                                        nonOutliersCook4l_sw_fault, 
+                                                        nonOutliersCook4l_sw_faultsVSlcom)
+colnames(nonOutliersCook4l_corrCoeff) <- c('NonOutCook4l_SwFaultVSLCOM')
+nonOutliersCook4l_corrCoeff
+```
+
+Comparing the obtained results with the ones obtained on the original data, all
+the results show worse results.
+In particular, all the values of the correlation coefficients are very near to 0.
+The p-value computed by the Shapiro-Wilk test is still less than 0.05.
+So, this transformation did not work in this situation.
+
+It is also possible to graphically check the differences between the two OLS
+lines of regression.
+
+```{r}
+plot(lcom, sw_fault)
+abline(sw_faultVSlcom)
+abline(nonOutliersCook4l_sw_faultsVSlcom, col="red")
+```
+
+
+
+### Final considerations
+
+The application of the OLS technique on the variables LCOM and Software 
+Faultiness is not possible, because these two variables are not linearly
+dependent.
+
+In particular, it is possible to report the main coefficient that evaluate the
+linear dependency of these two variables over the different analysis performed.
+
+```{r}
+cbind(orig_corrCoeff, log_corrCoeff, nonOutliersCook1_corrCoeff, nonOutliersCook4l_corrCoeff)
+```
+
+Looking at the above table, it is possible to state that both the original
+data and the ones where the outliers are removed according to a threshold value
+equal to 1 show a slight degree of correlation.
+However, in both these cases, both the Spearman's rho and the Kendall's tau
+are quite near to 0 and the p-value computed by the Shapiro-Wilk test is always
+less than 0.05.
+
+
+
+
+
+## Univariate statistically-significant model - OLS - Results evaluation
+
+Looking at the results obtained through the application of the OLS technique to
+all the pairs of independent-dependent variables, it is possible to state that
+a statistically-significant model is never built-up using OLS.
+
+
+
+
+
+# Univariate statistically-significant model - Binary Logistic Regression
+
+The Binary Logistic Regression is a statistical technique used to predict the
+relationship between one or more independent variables and a the dependent one,
+where the dependent variable can only assume two possible values.
+
+```{r}
+binary_sw_fault <- ifelse(sw_fault > 0, 1, 0)
+hist(binary_sw_fault)
+```
+
+In particular, the dependent variable is transformed in such a way that it can
+only assume the values 1 when the data-point is considered as a faulty artifact 
+or 0 when the data-point is considered as a non-faulty artifact.
+
+
+
+
+## Univariate statistically-significant model - Binary Logistic Regression - Software Faultiness vs LOC
+
+It can be useful to plot how both the faulty and non-faulty data-points are
+distributed with respect to the LOC variable.
+
+```{r}
+plot(loc, binary_sw_fault)
+locNonFaulty <- loc[binary_sw_fault %in% 0]
+hist(locNonFaulty, breaks = 20)
+locFaulty <- loc[binary_sw_fault %in% 1]
+hist(locFaulty, breaks = 20)
+```
+
+Then, the model is built-up.
+
+```{r}
+binary_sw_faultVSloc <- glm( binary_sw_fault~loc, family=binomial(link="logit"))
+summary(binary_sw_faultVSloc)
+```
+
+### Binary Logistic Regression - Software Faultiness vs LOC - Fault-proneness model
+
+After the Binary Logistic Regression model is built-up, it can be used as a
+fault-proneness model in order to estimate the probability of an artifact to be
+faulty.
+
+In particular, the first step involves the graphical plot of the model.
+
+```{r}
+xweight <- seq(min(loc), max(loc)*1.1, 0.1)
+yweight <- predict(binary_sw_faultVSloc, list(loc = xweight), type="response")
+plot(loc, binary_sw_fault, pch = 16, xlab = "loc", ylab = "binary_sw_fault")
+lines(xweight, yweight)
+```
+
+It is also needed the definition of thresholds in addition to fault-proneness
+model.
+In particular, concerning the Software Faultiness variable, the threshold is set
+to the proportion of faulty data-points.
+Concerning the LOC variable, the threshold is set to the difference between the
+log odds of an artifact to be faulty according to the faulty proportion and the
+log odds of an artifact to be faulty according to the LOC variable. 
+
+
+```{r}
+# In order to plot the threshold values, it is needed to re-create the scatterplot
+plot(loc, binary_sw_fault, pch = 16, xlab = "loc", ylab = "binary_sw_fault")
+lines(xweight, yweight)
+# Computation and plot of the threshold values
+faultyProportion <- sum(binary_sw_fault)/length(binary_sw_fault)
+abline(h=faultyProportion, col="blue")
+
+x <- (log(faultyProportion/(1-faultyProportion))-
+        coef(binary_sw_faultVSloc)[1])/coef(binary_sw_faultVSloc)[2]
+abline(v = x, col="blue")
+```
+
+In order to evaluate the performances of the classifier, it is needed to compute
+the contingency table.
+
+```{r}
+estimatedFaulty <- binary_sw_faultVSloc$fitted.values > faultyProportion
+actualFaulty <- binary_sw_fault == 1
+contingencyTable <- table(estimatedFaulty, actualFaulty)
+contingencyTable
+```
+
+Given the contingency table, it is possible to compute the accuracy, precision
+and recall.
+In particular,
+
+ - The accuracy represents the proportion of correct classifications, and it is 
+ computed as ratio between the number of correct predictions and the number of
+ samples.
+ 
+ - The precision represents the proportion of estimated positives that are 
+ actually positive, and it is computed as the ratio between the number of true 
+ positives and the number of estimated positives.
+ 
+ - The recall represents the proportion of actual positives that are also 
+ estimated as positives, and it is computed as the ratio between the number of 
+ true positives and the number of actual positives.
+
+In particular, it can be useful to define a function that computes these
+coefficients according to the contingency table.
+
+```{r}
+accurIndNames <- c('Accuracy', 'Precision', 'Recall')
+
+accuracy.indicators <- function(contingencyTable) {
+  accuracy <- (contingencyTable[1,1]+contingencyTable[2,2])/sum(contingencyTable)
+  precision <- contingencyTable[2,2]/sum(contingencyTable[2,])
+  recall <- contingencyTable[2,2]/sum(contingencyTable[,2])
+  matrix <- matrix(c(accuracy, precision, recall), byrow=TRUE)
+  rownames(matrix) <- accurIndNames
+  return (as.table(matrix))
+}
+```
+
+Then, the function is called to compute the accuracy indicators of the model.
+
+```{r}
+accurInd <- accuracy.indicators(contingencyTable)
+colnames(accurInd) <- c('SwFaultVSLOC')
+round(accurInd,2)
+```
+According to the obtained results, the model does not show very good values of
+accuracy.
+In particular, the recall value equals 0.42 and the accuracy value equals 0.56.
+However, the model shows a very good value of precision, meaning that it is quite
+able to recognize faulty artifacts.
+Furthermore, since the model works using just an independent variable as 
+predictor, these result can be considered as acceptable ones.
+
+
+
+
+## Univariate statistically-significant model - Binary Logistic Regression - Software Faultiness vs AMC
+
+It can be useful to plot how both the faulty and non-faulty data-points are
+distributed with respect to the AMC variable.
+
+```{r}
+plot(amc, binary_sw_fault)
+amcNonFaulty <- amc[binary_sw_fault %in% 0]
+hist(amcNonFaulty, breaks = 20)
+amcFaulty <- amc[binary_sw_fault %in% 1]
+hist(amcFaulty, breaks = 20)
+```
+
+Then, the model is built-up.
+
+```{r}
+binary_sw_faultVSamc <- glm( binary_sw_fault~amc, family=binomial(link="logit"))
+summary(binary_sw_faultVSamc)
+```
+
+### Binary Logistic Regression - Software Faultiness vs AMC - Fault-proneness model
+
+After the Binary Logistic Regression model is built-up, it can be used as a
+fault-proneness model in order to estimate the probability of an artifact to be
+faulty.
+
+In particular, the first step involves the graphical plot of the model.
+
+```{r}
+xweight <- seq(min(amc), max(amc)*1.1, 0.1)
+yweight <- predict(binary_sw_faultVSamc, list(amc = xweight), type="response")
+plot(amc, binary_sw_fault, pch = 16, xlab = "amc", ylab = "binary_sw_fault")
+lines(xweight, yweight)
+```
+
+Then, the threshold values need to be computed.
+
+```{r}
+# In order to plot the threshold values, it is needed to re-create the scatterplot
+plot(amc, binary_sw_fault, pch = 16, xlab = "amc", ylab = "binary_sw_fault")
+lines(xweight, yweight)
+# Computation and plot of the threshold values
+faultyProportion <- sum(binary_sw_fault)/length(binary_sw_fault)
+abline(h=faultyProportion, col="blue")
+
+x <- (log(faultyProportion/(1-faultyProportion))-
+        coef(binary_sw_faultVSamc)[1])/coef(binary_sw_faultVSamc)[2]
+abline(v = x, col="blue")
+```
+
+In order to evaluate the performances of the classifier, it is needed to compute
+the contingency table.
+
+```{r}
+estimatedFaulty <- binary_sw_faultVSamc$fitted.values > faultyProportion
+actualFaulty <- binary_sw_fault == 1
+contingencyTable <- table(estimatedFaulty, actualFaulty)
+contingencyTable
+```
+
+Finally, the previously-defined function is called to compute the accuracy 
+indicators of the model.
+
+```{r}
+accurInd <- accuracy.indicators(contingencyTable)
+colnames(accurInd) <- c('SwFaultVSAMC')
+round(accurInd, 2)
+```
+
+According to the obtained results, the model shows the accuracy values to be
+slightly worse than the ones obtained using the LOC variable as predictor.
+However, even in this case the results can be considered as quite good ones.
+
+
+
+
+## Univariate statistically-significant model - Binary Logistic Regression - Software Faultiness vs MOA
+
+It can be useful to plot how both the faulty and non-faulty data-points are
+distributed with respect to the MOA variable.
+
+```{r}
+plot(moa, binary_sw_fault)
+moaNonFaulty <- moa[binary_sw_fault %in% 0]
+hist(moaNonFaulty, breaks = 20)
+moaFaulty <- moa[binary_sw_fault %in% 1]
+hist(moaFaulty, breaks = 20)
+```
+
+Then, the model is built-up.
+
+```{r}
+binary_sw_faultVSmoa <- glm( binary_sw_fault~moa, family=binomial(link="logit"))
+summary(binary_sw_faultVSmoa)
+```
+
+### Binary Logistic Regression - Software Faultiness vs MOA - Fault-proneness model
+
+After the Binary Logistic Regression model is built-up, it can be used as a
+fault-proneness model in order to estimate the probability of an artifact to be
+faulty.
+
+In particular, the first step involves the graphical plot of the model.
+
+```{r}
+xweight <- seq(min(moa), max(moa)*1.1, 0.1)
+yweight <- predict(binary_sw_faultVSmoa, list(moa = xweight), type="response")
+plot(moa, binary_sw_fault, pch = 16, xlab = "moa", ylab = "binary_sw_fault")
+lines(xweight, yweight)
+```
+
+Then, the threshold values need to be computed.
+
+```{r}
+# In order to plot the threshold values, it is needed to re-create the scatterplot
+plot(moa, binary_sw_fault, pch = 16, xlab = "moa", ylab = "binary_sw_fault")
+lines(xweight, yweight)
+# Computation and plot of the threshold values
+faultyProportion <- sum(binary_sw_fault)/length(binary_sw_fault)
+abline(h=faultyProportion, col="blue")
+
+x <- (log(faultyProportion/(1-faultyProportion))-
+        coef(binary_sw_faultVSmoa)[1])/coef(binary_sw_faultVSmoa)[2]
+abline(v = x, col="blue")
+```
+
+In order to evaluate the performances of the classifier, it is needed to compute
+the contingency table.
+
+```{r}
+estimatedFaulty <- binary_sw_faultVSmoa$fitted.values > faultyProportion
+actualFaulty <- binary_sw_fault == 1
+contingencyTable <- table(estimatedFaulty, actualFaulty)
+contingencyTable
+```
+
+Finally, the previously-defined function is called to compute the accuracy 
+indicators of the model.
+
+```{r}
+accurInd <- accuracy.indicators(contingencyTable)
+colnames(accurInd) <- c('SwFaultVSMOA')
+round(accurInd, 2)
+```
+
+According to the obtained results, the model shows the accuracy values to be
+slightly worse than the ones obtained in the previous analysis.
+In particular, these results cannot be considered as good ones.
+
+
+
+
+## Univariate statistically-significant model - Binary Logistic Regression - Software Faultiness vs LCOM
+
+It can be useful to plot how both the faulty and non-faulty data-points are
+distributed with respect to the LCOM variable.
+
+```{r}
+plot(lcom, binary_sw_fault)
+lcomNonFaulty <- lcom[binary_sw_fault %in% 0]
+hist(lcomNonFaulty, breaks = 20)
+lcomFaulty <- lcom[binary_sw_fault %in% 1]
+hist(lcomFaulty, breaks = 20)
+```
+
+Then, the model is built-up.
+
+```{r}
+binary_sw_faultVSlcom <- glm( binary_sw_fault~lcom, family=binomial(link="logit"))
+summary(binary_sw_faultVSlcom)
+```
+
+### Binary Logistic Regression - Software Faultiness vs LCOM - Fault-proneness model
+
+After the Binary Logistic Regression model is built-up, it can be used as a
+fault-proneness model in order to estimate the probability of an artifact to be
+faulty.
+
+In particular, the first step involves the graphical plot of the model.
+
+```{r}
+xweight <- seq(min(lcom), max(lcom)*1.1, 0.1)
+yweight <- predict(binary_sw_faultVSlcom, list(lcom = xweight), type="response")
+plot(lcom, binary_sw_fault, pch = 16, xlab = "lcom", ylab = "binary_sw_fault")
+lines(xweight, yweight)
+```
+
+Then, the threshold values need to be computed.
+
+```{r}
+# In order to plot the threshold values, it is needed to re-create the scatterplot
+plot(lcom, binary_sw_fault, pch = 16, xlab = "lcom", ylab = "binary_sw_fault")
+lines(xweight, yweight)
+# Computation and plot of the threshold values
+faultyProportion <- sum(binary_sw_fault)/length(binary_sw_fault)
+abline(h=faultyProportion, col="blue")
+
+x <- (log(faultyProportion/(1-faultyProportion))-
+        coef(binary_sw_faultVSlcom)[1])/coef(binary_sw_faultVSlcom)[2]
+abline(v = x, col="blue")
+```
+
+In order to evaluate the performances of the classifier, it is needed to compute
+the contingency table.
+
+```{r}
+estimatedFaulty <- binary_sw_faultVSlcom$fitted.values > faultyProportion
+actualFaulty <- binary_sw_fault == 1
+contingencyTable <- table(estimatedFaulty, actualFaulty)
+contingencyTable
+```
+
+Finally, the previously-defined function is called to compute the accuracy 
+indicators of the model.
+
+```{r}
+accurInd <- accuracy.indicators(contingencyTable)
+colnames(accurInd) <- c('SwFaultVSLCOM')
+round(accurInd, 2)
+```
+
+According to the obtained results, the model shows the accuracy values to be
+slightly worse than the ones obtained using the LOC variable or the AMC variable 
+as predictors.
+However, even in this case the results can be considered as quite good ones.
+
+
+
+
+## Univariate statistically-significant model - Binary Logistic Regression - Results evaluation
+
+Looking at the results obtained through the application of the Binary Logistic
+Regression with a single predictor, the variable that allows to obtain the best
+accuracy result is the LOC.
+In particular, in this case the model reaches an accuracy of 56% and a precision
+of 74%.
+Since only one variable is used to predict the label of the new data, this 
+result can be considered as a good one.
+It is also possible to notice that even the independent variables AMC and LCOM 
+allow to obtain a model with acceptable performances.
+
+
+
+
+
+# Multivariate statistically-significant model - Naive Bayes Classifier
+
+Naive Bayes is a Supervised Machine Learning algorithm based on the Bayes 
+Theorem, and it is used to solve classification problems by following a 
+probabilistic approach.
+It is based on the idea that the independent variables in a Machine Learning 
+model are independent of each other.
+Meaning that the outcome of a model depends on a set of independent variables
+that have nothing to do with each other.
+
+According to the results obtained while checking the assumptions of the OLS
+technique, the Software Faultiness variable is more correlated with the 
+variables LOC and LCOM.
+For this reason, it has been chosen to start to evaluate the accuracy of a
+Naive Bayes Classifier that used these two variables as the predictors.
+
+In order to build up a Naive Bayes Classifier, a dataframe structure is required.
+
+```{r}
+cleanedLucene <- lucene[c("bug","loc","amc","moa","lcom")]
+```
+
+Furthermore, it is needed to transform the dependent variable into a categorical
+one.
+In particular, the Software Faultiness's values will be 'Faulty' or 'Non-Faulty'
+based on its original value.
+
+```{r}
+bug <- lucene$bug
+binary_bug <- ifelse(bug > 0, 'Faulty', 'Non-Faulty')
+cleanedLucene[["bug"]] <- binary_bug
+head(cleanedLucene)
+```
+
+### Check of the assumptions
+
+The Naive Bayes Classifiers requires the independent variables to be independent
+with each other.
+In order to evaluate the degree of correlation among all the independent
+variables, the correlation matrix is computed.
+
+```{r}
+indep_var <- cleanedLucene[,-1]
+corr_matr <- cor(indep_var)
+round(corr_matr, 2)
+```
+
+Looking at the correlation matrix, the only pairs of variables that do not share
+a considerable degree of correlation are AMC-LCOM and AMC-MOA.
+So, these pairs of variables are the ones that will be analyzed as first.
+
+
+
+
+## Naive Bayes Classifier - Software Faultiness vs AMC and LCOM
+
+For sake of reproducibility, it is needed to set the value of the seed of the 
+random number generator.
+
+```{r}
+set.seed(123456)
+```
+
+Furthermore, it is needed to import some useful libraries.
+The first one contains functions to streamline the model training process for 
+complex regression and classification problems.
+The second one contains the functions used to create several well-known 
+classification models.
+
+```{r}
+library(caret)
+library(e1071)
+```
+
+The following step involves the creation of both the training and the test sets.
+
+```{r}
+trainIndex <- createDataPartition(cleanedLucene$bug, p=0.7)$Resample1
+training <- cleanedLucene[trainIndex, ]
+testing <- cleanedLucene[-trainIndex, ]
+```
+
+It is also possible to show some interesting characteristics of these two sets
+of data-points.
+
+```{r}
+cat("Number of data-points in the training set:", length(training$bug))
+cat("Number of data-points in the test set:", length(testing$bug))
+cat("Number of Faulty and Non-Faulty data-points in the training set:",
+    table(training$bug))
+cat("Number of Faulty and Non-Faulty data-points in the test set:",
+    table(testing$bug))
+cat("Proportion of Faulty and Non-Faulty data-points in the training set:",
+    prop.table(table(training$bug)) * 100)
+cat("Proportion of Faulty and Non-Faulty data-points in the test set:",
+    prop.table(table(testing$bug)) * 100)
+```
+
+Before the model is built-up, it is needed to create the two variables that will
+be passed to the model.
+In particular, the variable 'x' represents the set of independent variables that
+will be used by the model to compute the predicted values, and the variable 'y' 
+represents the actual values.
+
+```{r}
+x <- training[,c("amc","lcom")]
+head(x)
+y <- training$bug
+head(y)
+```
+
+Once the two variables have been created, the model can be built-up.
+In particular, the 'trControl' parameter is used to control the printing and 
+resampling for the training phase.
+In particular, the resampling is performed through the K-fold Cross-Validation
+technique, that is a resampling procedure used to evaluate machine learning 
+models on a limited data sample.
+The procedure has a single parameter called k that specifies the number of 
+groups in which the samples must be splitted into.
+
+```{r}
+model <- train(x,y,'nb',trControl=trainControl(method='cv',number=10))
+model
+```
+
+Finally, the model is evaluated using the confusion matrix.
+In particular, the model is asked to predict the values contained in the test
+set, and then the predicted values are compared with the actual values.
+
+```{r}
+predictions <- predict(model,newdata = testing )
+
+cm <- table(testing$bug, predictions)
+confusionMatrix(cm)
+```
+
+According to the results shown by the confusion matrix, the model has reached
+an accuracy of 62%.
+Since the model has been trained using only two variables, the results can be
+considered as good ones.
+
+It can be interesting to investigate the results that can be obtained by
+increasing the data-points contained in the training set.
+
+### Naive Bayes Classifier - Software Faultiness vs AMC and LCOM - Training set increased
+
+The steps performed are always the same.
+
+```{r}
+trainIndex <- createDataPartition(cleanedLucene$bug, p=0.8)$Resample1
+training <- cleanedLucene[trainIndex, ]
+testing <- cleanedLucene[-trainIndex, ]
+```
+
+It is also possible to show some interesting characteristics of these two sets
+of data-points.
+
+```{r}
+cat("Number of data-points in the training set:", length(training$bug))
+cat("Number of data-points in the test set:", length(testing$bug))
+cat("Number of Faulty and Non-Faulty data-points in the training set:",
+    table(training$bug))
+cat("Number of Faulty and Non-Faulty data-points in the test set:",
+    table(testing$bug))
+cat("Proportion of Faulty and Non-Faulty data-points in the training set:",
+    prop.table(table(training$bug)) * 100)
+cat("Proportion of Faulty and Non-Faulty data-points in the test set:",
+    prop.table(table(testing$bug)) * 100)
+```
+
+Before the model is built-up, it is needed to create the two variables that will
+be passed to the model.
+In particular, the variable 'x' represents the set of independent variables that
+will be used by the model to compute the predicted values, and the variable 'y' 
+represents the actual values.
+
+```{r}
+x <- training[,c("amc","lcom")]
+head(x)
+
+y <- training$bug
+head(y)
+```
+
+Once the two variables have been created, the model can be built-up.
+In particular, the 'trControl' parameter is used to control the printing and 
+resampling for the training phase.
+In particular, the resampling is performed through the K-fold Cross-Validation
+technique, that is a resampling procedure used to evaluate machine learning 
+models on a limited data sample.
+The procedure has a single parameter called k that specifies the number of 
+groups in which the samples must be splitted into.
+
+```{r}
+model <- train(x,y,'nb',trControl=trainControl(method='cv',number=10))
+model
+```
+
+Finally, the model is evaluated using the confusion matrix.
+In particular, the model is asked to predict the values contained in the test
+set, and then the predicted values are compared with the actual values.
+
+```{r}
+predictions <- predict(model,newdata = testing )
+
+cm <- table(testing$bug, predictions)
+confusionMatrix(cm)
+```
+
+According to the results shown by the confusion matrix, the model has reached
+an accuracy of 53%.
+These results are slightly worse with respect to the one obtained using less
+data-points during the training phase.
+So, this procedure is not successful.
+
+
+
+
+
+## Naive Bayes Classifier - Software Faultiness vs AMC and MOA
+
+The steps performed to evaluate the results of the Naive Bayes Classifier 
+uaing the variables AMC and MOA as predictors are the same performed in the
+previous analysis.
+
+Firstly, both the training and the test sets are created.
+
+```{r}
+trainIndex <- createDataPartition(cleanedLucene$bug, p=0.7)$Resample1
+training <- cleanedLucene[trainIndex, ]
+testing <- cleanedLucene[-trainIndex, ]
+```
+
+It is also possible to show some interesting characteristics of these two sets
+of data-points.
+
+```{r}
+cat("Number of data-points in the training set:", length(training$bug))
+cat("Number of data-points in the test set:", length(testing$bug))
+cat("Number of Faulty and Non-Faulty data-points in the training set:",
+    table(training$bug))
+cat("Number of Faulty and Non-Faulty data-points in the test set:",
+    table(testing$bug))
+cat("Proportion of Faulty and Non-Faulty data-points in the training set:",
+    prop.table(table(training$bug)) * 100)
+cat("Proportion of Faulty and Non-Faulty data-points in the test set:",
+    prop.table(table(testing$bug)) * 100)
+```
+
+Before the model is built-up, it is needed to create the two variables that will
+be passed to the model.
+
+```{r}
+x <- training[,c("amc","moa")]
+head(x)
+y <- training$bug
+head(y)
+```
+
+Once the two variables have been created, the model can be built-up.
+
+```{r}
+model <- train(x,y,'nb',trControl=trainControl(method='cv',number=10))
+model
+```
+
+Finally, the model is evaluated using the confusion matrix.
+In particular, the model is asked to predict the values contained in the test
+set, and then the predicted values are compared with the actual values.
+
+```{r}
+predictions <- predict(model,newdata = testing )
+
+cm <- table(testing$bug, predictions)
+confusionMatrix(cm)
+```
+
+According to the results shown by the confusion matrix, the model has reached
+an accuracy of 57%.
+These results are slightly worse with respect to the one obtained using the
+variables AMC and LCOM as predictors.
+
+
+
+
+## Naive Bayes Classifier - Software Faultiness vs AMC, LCOM and MOA
+
+Finally, an analysis is performed to evaluate the results obtained by the Naive
+Bayes Classifier using three independent variables as predictors.
+
+The steps performed are always the same.
+In particular, the first one involves the creation of both the training and the 
+test sets.
+
+```{r}
+trainIndex <- createDataPartition(cleanedLucene$bug, p=0.7)$Resample1
+training <- cleanedLucene[trainIndex, ]
+testing <- cleanedLucene[-trainIndex, ]
+```
+
+It is also possible to show some interesting characteristics of these two sets
+of data-points.
+
+```{r}
+cat("Number of data-points in the training set:", length(training$bug))
+cat("Number of data-points in the test set:", length(testing$bug))
+cat("Number of Faulty and Non-Faulty data-points in the training set:",
+    table(training$bug))
+cat("Number of Faulty and Non-Faulty data-points in the test set:",
+    table(testing$bug))
+cat("Proportion of Faulty and Non-Faulty data-points in the training set:",
+    prop.table(table(training$bug)) * 100)
+cat("Proportion of Faulty and Non-Faulty data-points in the test set:",
+    prop.table(table(testing$bug)) * 100)
+```
+
+Before the model is built-up, it is needed to create the two variables that will
+be passed to the model.
+
+```{r}
+x <- training[,c("amc","moa","lcom")]
+head(x)
+y <- training$bug
+head(y)
+```
+
+Once the two variables have been created, the model can be built-up.
+
+```{r}
+model <- train(x,y,'nb',trControl=trainControl(method='cv',number=10))
+model
+```
+
+Finally, the model is evaluated using the confusion matrix.
+In particular, the model is asked to predict the values contained in the test
+set, and then the predicted values are compared with the actual values.
+
+```{r}
+predictions <- predict(model,newdata = testing )
+
+cm <- table(testing$bug, predictions)
+confusionMatrix(cm)
+```
+
+According to the results shown by the confusion matrix, the model has reached
+an accuracy of 50%.
+These results are worse with respect to the one obtained using the
+variables AMC and LCOM as predictors.
+
+
+
+
+## Naive Bayes Classifier - Results evaluation
+
+Looking at the results obtained through the application of the Naive Bayes
+Classifier, the set of independent variables that allows to obtain the best
+accuracy result is the one composed by AMC and LCOM.
+In particular, using this set of variables as predictors, the model reaches an
+accuracy of 62%.
+Since only two variables have been used to predict the label of the new data,
+this result can be considered as a good one.
+
+
+
+
+
+# Multivariate statistically-significant model - Binary Logistic Regression
+
+The Binary Logistic Regression technique can be also used to build a 
+multivariate model by using more than one independent variable to predict the
+outcome.
+
+
+
+
+## Multivariate Binary Logistic Regression - Software Faultiness vs LOC, AMC, MOA and LCOM
+
+The model is built-up using all the independent variables as predictors.
+
+```{r}
+multivariate_binary_sw_faultVSall <- glm(binary_sw_fault~loc+amc+moa+lcom,
+                                         family=binomial(link="logit"))
+summary(multivariate_binary_sw_faultVSall)
+```
+
+
+
+### Software Faultiness vs LOC, AMC, MOA and LCOM - Fault-proneness model
+
+In order to evaluate the performances of the model as a classifier, it is 
+possible to compute the corresponding contingency table.
+
+```{r}
+estimatedFaulty <- multivariate_binary_sw_faultVSall$fitted.values > faultyProportion
+actualFaulty <- binary_sw_fault == 1
+contingencyTable <- table(estimatedFaulty, actualFaulty)
+contingencyTable
+```
+
+Finally, the previously-defined function is called to compute the accuracy 
+indicators of the model.
+
+```{r}
+accurInd <- accuracy.indicators(contingencyTable)
+colnames(accurInd) <- c('SwFaultVSLOC')
+round(accurInd,2)
+```
+
+According to the obtained results, the model does not show very good values of 
+accuracy.
+In particular, the recall value equals 0.40 and the accuracy value equals 0.58.
+However, the model shows a very good value of precision, meaning that it is 
+quite able to recognize faulty artifacts.
+So, the results obtained from the model can be considered as acceptable ones.
+
+
+
+
+## Multivariate Binary Logistic Regression - Software Faultiness vs best set of predictors
+
+In order to find out which is the best set of independent variables that can be
+used to predict whether an artifact is faulty, it is possible to perform a
+stepwise model selection based on the AIC vaue.
+In particular, a stepwise model selection is a technique in which the choice of 
+the predictive variables is carried out in several steps, generally by an 
+automatic procedure.
+In this case, the goal of this procedure is to reduce the AIC coefficient, that
+is a measure of the relative quality of a model.
+This coefficient has no interpretation without a comparison value, and it should
+only be used to compare different models.
+
+In particular, in order to perform a stepwise model selection based on the AIC
+value, it is needed to import an external library.
+
+```{r}
+library(MASS)
+```
+
+Then, the procedure is performed by using the Binary Logistic Regression model
+that has been fitted with all the predictors.
+
+```{r}
+multivariate_binary_sw_faultVSbest <- stepAIC(multivariate_binary_sw_faultVSall)
+summary(multivariate_binary_sw_faultVSbest)
+```
+
+In particular, it is possible to see as the AIC coefficient has been decreased
+from 434, that is the value obtained by using all the selected independent
+variables as predictors, to 430, that is the value obtained by using only the
+variables LOC and LCOM as predictors.
+So, it can be interesting to check how much the performances of the
+model has changed in terms of accuracy.
+
+
+### Software Faultiness vs best set of predictors - Fault-proneness model
+
+In order to evaluate the performances of the model as a classifier, it is 
+possible to compute the corresponding contingency table.
+
+```{r}
+estimatedFaulty <- multivariate_binary_sw_faultVSbest$fitted.values > faultyProportion
+actualFaulty <- binary_sw_fault == 1
+contingencyTable <- table(estimatedFaulty, actualFaulty)
+contingencyTable
+```
+
+Finally, the previously-defined function is called to compute the accuracy 
+indicators of the model.
+
+```{r}
+accurInd <- accuracy.indicators(contingencyTable)
+colnames(accurInd) <- c('SwFaultVSLOC')
+round(accurInd,2)
+```
+
+Comparing the obtained results with the ones obtained using all the selected
+independent variables as predictors, it is possible to see that there are no
+significant changes in the accuracy results.
+So, the only result that has been reached through the application of this 
+technique is the reduction of the number of independent variables that can be
+used in order to predict whether an artifact is faulty.
+
+
+
+
+## Multivariate Binary Logistic Regression - Results evaluation
+
+Looking at the results obtained through the application of the Binary Logistic 
+Regression with more than one predictor, the set of variables composed by LOC
+and LCOM reaches the same values of accuracy of the model fitted with all the
+selected independent variables as predictors.
+In particular, both the models reach an accuracy of 58% and a precision of 
+79-80%.
+So, the obtained results can be considered as good ones.
+
+
+
+
+
+# Conclusions
+
+In conclusion, it is possible to summerize the results of the project as follows:
+
+ - Looking at the univariate models, the ones built-up by applying OLS are never
+ statistically-significant.
+ However, the Binary Logistic Regression finds out that it is possible to 
+ build-up a statistically-significant model with acceptable performances.
+ In particular, the model obtained by using the LOC variable as predictor reaches
+ an accuracy of 56% and a precision of 74%.
+ 
+ - Looking at the multivariate models, the Naive Bayes Classifier allows to
+ build-up a statistically-significant model with good preformances.
+ In particular, the model obtained by using both the AMC and LCOM variables as
+ predictors reaches an accuracy of 62%.
+ Even the Binary Logistic Regression finds out that it is possible to build-up a
+ statistically-significant model with acceptable performances.
+ In particular, the model obtained by using both the LOC and LCOM variables as 
+ predictors reaches an accuracy of 58% and a precision of 79%.
+ 
