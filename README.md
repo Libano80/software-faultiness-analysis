@@ -3,6 +3,7 @@
 ## Project Purpose
 
 The purpose of the project is to carry out a complete data analysis using the R programming language.
+
 The analysis is based on the dataset lucene-2.4, also available at:
 https://archive.apache.org/dist/lucene/java/. <br>
 In particular, the dataset Lucene provides Java-based indexing and search technology, as well as spellchecking, hit highlighting and advanced analysis/tokenization capabilities.
